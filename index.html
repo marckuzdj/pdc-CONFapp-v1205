@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v10</h3>
+    <h3>Passagem de Carga | Conferência v11</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -269,11 +269,12 @@
     <div id="screen-intercorrencia" class="card hidden">
         <h3 style="color: var(--nu-purple); text-align: center;">⏸️ Registro de Intercorrência</h3>
         <p style="font-size: 14px; color: var(--nu-text-light); text-align: center;">
-            O romaneio possui pendências. Selecione o motivo colocar em espera.
+            Selecione o motivo colocar o romaneio em espera.
         </p>
         
         <label>Motivo da Retenção</label>
-        <select id="select-motivo">
+        <!-- ADICIONADO onchange para monitorar a seleção em tempo real -->
+        <select id="select-motivo" onchange="verificarMotivoAvaria()">
             <option value="">Selecione o motivo...</option>
             <optgroup label="📦 Carga e Pedidos">
                 <option value="Divergência de Quantidade">Divergência de Quantidade (Faltando/Sobrando)</option>
@@ -290,12 +291,26 @@
     
         <label>Observação Detalhada</label>
         <input type="text" id="obs-intercorrencia" placeholder="Explique os detalhes aqui...">
+
+        <!-- 📸 NOVO CONTAINER PARA FOTO DE AVARIA (OCULTO POR PADRÃO) -->
+        <div id="container-foto-avaria" style="display: none; margin: 15px 0; text-align: center;">
+            <label style="color: red; font-weight: bold; display: block; margin-bottom: 5px;">📸 Foto da Avaria Obrigatória</label>
+            
+            <!-- Elemento de vídeo para espelhar a câmera -->
+            <video id="video-avaria" autoplay playsinline style="width: 100%; max-width: 300px; border-radius: 8px; background: #000; display: none;"></video>
+            
+            <!-- Imagem para exibir a foto capturada -->
+            <img id="preview-avaria" style="width: 100%; max-width: 300px; border-radius: 8px; display: none; margin: 0 auto;" />
+            
+            <!-- Botões de controle da foto -->
+            <button type="button" id="btn-iniciar-cam-avaria" class="btn" style="background: var(--nu-purple); color: #fff; margin-top: 5px;" onclick="ligarCameraAvaria()">🎥 Ativar Câmera</button>
+            <button type="button" id="btn-capturar-avaria" class="btn" style="background: #ff9800; color: #fff; margin-top: 5px; display: none;" onclick="capturarFotoAvaria()">📸 Tirar Foto</button>
+        </div>
     
         <button class="btn btn-success" onclick="registrarIntercorrencia()">Registrar e Prosseguir</button>
-        
-        <!-- ADJUSTED: Botão original adaptado com ID e a nova função inteligente de fechamento -->
         <button type="button" id="btn-cancelar-intercorrencia" class="link-sec" onclick="fecharIntercorrenciaOpcional()" style="border:none; background:none; width:100%; cursor:pointer;">Cancelar</button>
     </div>
+
 
 
 <script>
@@ -1435,12 +1450,27 @@ async function finalizarLote() {
 }
 
 // --- FUNÇÃO AUXILIAR: MAPEIA O CLIQUE EM CANCELAR NA TELA DE INTERCORRÊNCIA ---
+// --- FUNÇÃO AUXILIAR: MAPEIA O CLIQUE EM CANCELAR NA TELA DE INTERCORRÊNCIA ---
 function fecharIntercorrenciaOpcional() {
     const btnCancelarIntercor = document.getElementById("btn-cancelar-intercorrencia");
     if (btnCancelarIntercor) btnCancelarIntercor.style.display = "none";
+    
+    // -----------------------------------------------------------------
+    // ADICIONADO APENAS O NECESSÁRIO: Reseta buffers e desliga hardware de vídeo
+    // -----------------------------------------------------------------
+    if (typeof desligarCameraAvaria === 'function') {
+        desligarCameraAvaria();
+    }
+    window.fotoAvariaBase64 = ""; 
+    
+    const previewImg = document.getElementById("preview-avaria");
+    if (previewImg) previewImg.src = "";
+    // -----------------------------------------------------------------
+
     alert("Lote finalizado com sucesso!");
     resetarInterface();
 }
+
 
 // Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
 async function registrarIntercorrencia() {
@@ -1457,6 +1487,17 @@ async function registrarIntercorrencia() {
     if (!motivo) return alert("⚠️ Por favor, selecione o motivo!");
     if (!obs) return alert("⚠️ Por favor, preencha a observação detalhada!");
 
+    // =================================================================
+    // ADICIONADO APENAS O NECESSÁRIO: Validação obrigatória de Foto para Avaria
+    // =================================================================
+    if (motivo === "Mercadoria Avariada") {
+        if (typeof fotoAvariaBase64 === 'undefined' || !fotoAvariaBase64) {
+            if (typeof tocarBeep === 'function') tocarBeep('erro');
+            return alert("⚠️ Erro: É obrigatório tirar uma foto comprovando a avaria da mercadoria!");
+        }
+    }
+    // =================================================================
+
     // Identifica se a quebra veio por falta de bipes ou por divergência de volume
     const faltantes = window.qtdFaltantesLoteAtual || 0;
     const prefixo = faltantes > 0 ? `[PENDENTE ${faltantes} ITENS]` : "[DIVERGENCIA VOLUMES]";
@@ -1467,6 +1508,9 @@ async function registrarIntercorrencia() {
     // Limpa os campos internos para que não fiquem preenchidos em uma próxima carga
     if (motivoSelect) motivoSelect.value = "";
     if (obsInput) obsInput.value = "";
+    
+    // Desliga fisicamente os sensores de mídia abertos se houver
+    if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
 
     // Retorna para a tela principal
     showScreen('screen-main'); 
@@ -1480,6 +1524,7 @@ async function registrarIntercorrencia() {
     // Ativa imediatamente a busca por GPS e abre o Canvas para o desenho da assinatura
     await prepararFaseAssinatura(btnMain, areaAss);
 }
+
 
 
 // Função essencial para permitir o próximo romaneio sem recarregar a página
@@ -1626,7 +1671,86 @@ async function prepararFaseAssinatura(btn, areaAssinatura) {
     }
 }
 
+// Variáveis de controle locais para a foto da avaria
+let streamAvaria = null;
+let fotoAvariaBase64 = "";
+
+// Monitora se o motivo selecionado exige foto e descrição obrigatória
+function verificarMotivoAvaria() {
+    const motivo = document.getElementById("select-motivo").value;
+    const containerFoto = document.getElementById("container-foto-avaria");
+    const inputObs = document.getElementById("obs-intercorrencia");
+
+    if (motivo === "Mercadoria Avariada") {
+        containerFoto.style.display = "block";
+        inputObs.placeholder = "⚠️ DESCRIÇÃO OBRIGATÓRIA: Descreva a avaria...";
+        inputObs.style.border = "2px solid red";
+    } else {
+        // Desliga a câmera caso mude de opção antes de salvar
+        desligarCameraAvaria();
+        containerFoto.style.display = "none";
+        inputObs.placeholder = "Explique os detalhes aqui...";
+        inputObs.style.border = "1px solid #ccc";
+    }
+}
+
+// Liga a câmera do celular/PC diretamente no container de avarias
+async function ligarCameraAvaria() {
+    try {
+        const video = document.getElementById("video-avaria");
+        const img = document.getElementById("preview-avaria");
+        
+        streamAvaria = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } // Prioriza câmera traseira no celular
+        });
+        
+        video.srcObject = streamAvaria;
+        video.style.display = "block";
+        img.style.display = "none";
+        
+        document.getElementById("btn-iniciar-cam-avaria").style.display = "none";
+        document.getElementById("btn-capturar-avaria").style.display = "inline-block";
+    } catch (err) {
+        console.error("Erro ao abrir câmera de avaria:", err);
+        alert("❌ Não foi possível abrir a câmera para registrar a avaria.");
+    }
+}
+
+// Captura o frame atual do vídeo e transforma em imagem Base64
+function capturarFotoAvaria() {
+    const video = document.getElementById("video-avaria");
+    const img = document.getElementById("preview-avaria");
     
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    fotoAvariaBase64 = canvas.toDataURL("image/png");
+    
+    // Mostra o preview da foto estática e esconde o vídeo ativo
+    img.src = fotoAvariaBase64;
+    img.style.display = "block";
+    video.style.display = "none";
+    
+    // Desliga os sensores físicos da câmera para economizar bateria
+    desligarCameraAvaria();
+    
+    document.getElementById("btn-iniciar-cam-avaria").innerText = "🔄 Tirar Outra Foto";
+    document.getElementById("btn-iniciar-cam-avaria").style.display = "inline-block";
+    document.getElementById("btn-capturar-avaria").style.display = "none";
+}
+
+// Para o fluxo de vídeo fisicamente
+function desligarCameraAvaria() {
+    if (streamAvaria) {
+        streamAvaria.getTracks().forEach(track => track.stop());
+        streamAvaria = null;
+    }
+}
+  
 
 </script>
 
