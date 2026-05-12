@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v12</h3>
+    <h3>Passagem de Carga | Conferência v13</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -1283,6 +1283,7 @@ async function enviarDadosFinais() {
             conferencia: new Date().toLocaleString("pt-BR"),
             intercorrencia: intercorrenciaFinal, 
             obs_final: textoObsDefinitivo, 
+            foto_avaria: window.fotoAvariaBase64 || "",
             status_lote: statusProgresso 
         };
 
@@ -1482,6 +1483,7 @@ function fecharIntercorrenciaOpcional() {
 
 
 // Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
+// Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
 async function registrarIntercorrencia() {
     const motivoSelect = document.getElementById("select-motivo");
     const obsInput = document.getElementById("obs-intercorrencia");
@@ -1497,10 +1499,10 @@ async function registrarIntercorrencia() {
     if (!obs) return alert("⚠️ Por favor, preencha a observação detalhada!");
 
     // =================================================================
-    // ADICIONADO APENAS O NECESSÁRIO: Validação obrigatória de Foto para Avaria
+    // CORREÇÃO: Garante a leitura da variável no escopo global (window)
     // =================================================================
     if (motivo === "Mercadoria Avariada") {
-        if (typeof fotoAvariaBase64 === 'undefined' || !fotoAvariaBase64) {
+        if (!window.fotoAvariaBase64) {
             if (typeof tocarBeep === 'function') tocarBeep('erro');
             return alert("⚠️ Erro: É obrigatório tirar uma foto comprovando a avaria da mercadoria!");
         }
@@ -1533,6 +1535,7 @@ async function registrarIntercorrencia() {
     // Ativa imediatamente a busca por GPS e abre o Canvas para o desenho da assinatura
     await prepararFaseAssinatura(btnMain, areaAss);
 }
+
 
 
 
