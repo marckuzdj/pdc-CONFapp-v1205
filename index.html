@@ -1485,19 +1485,22 @@ function fecharIntercorrenciaOpcional() {
 // Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
 // Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
 // Nova função adaptada com validação de campos obrigatórios e fluxo automático de encerramento imediato
+// Nova função adaptada com validação de campos obrigatórios e fluxo automático de assinatura
 async function registrarIntercorrencia() {
     const motivoSelect = document.getElementById("select-motivo");
     const obsInput = document.getElementById("obs-intercorrencia");
-    const romaneioAtual = document.getElementById("romaneio").value;
     
     const motivo = motivoSelect ? motivoSelect.value.trim() : "";
     const obs = obsInput ? obsInput.value.trim() : "";
     
+    const btnMain = document.querySelector("button[onclick='finalizarLote()']");
+    const areaAss = document.getElementById("areaAssinatura");
+
     // Validação estrita de obrigatoriedade dos dois campos na interface
     if (!motivo) return alert("⚠️ Por favor, selecione o motivo!");
     if (!obs) return alert("⚠️ Por favor, preencha a observação detalhada!");
 
-    // Validação de Foto obrigatória caso seja Mercadoria Avariada
+    // Validação obrigatória de Foto para Avaria
     if (motivo === "Mercadoria Avariada") {
         if (typeof window.fotoAvariaBase64 === 'undefined' || !window.fotoAvariaBase64) {
             if (typeof tocarBeep === 'function') tocarBeep('erro');
@@ -1505,81 +1508,37 @@ async function registrarIntercorrencia() {
         }
     }
 
-    // Identifica se a quebra veio por falta de bipes ou por divergência de volume/conclusão com ressalva
+    // Identifica se a quebra veio por falta de bipes ou por divergência de volume
     const faltantes = window.qtdFaltantesLoteAtual || 0;
     const prefixo = faltantes > 0 ? `[PENDENTE ${faltantes} ITENS]` : "[CONCLUÍDO COM OCORRÊNCIA]";
     
     // Concatena mantendo a estrutura limpa para a string do payload
     intercorrenciaFinal = `${prefixo} Motivo: ${motivo} | Obs: ${obs}`;
+    
+    // Limpa os campos internos para que não fiquem preenchidos em uma próxima carga
+    if (motivoSelect) motivoSelect.value = "";
+    if (obsInput) obsInput.value = "";
+    
+    // Desliga fisicamente os sensores de mídia abertos se houver
+    if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
 
-    // -----------------------------------------------------------------
-    // GATILHO AUTOMÁTICO: Envia os dados para o Sheets na hora sem pedir assinatura
-    // -----------------------------------------------------------------
-    exibirAvisoLoadingGlobal(true, "Transmitindo ocorrência..."); // Se tiver spinner global, ative-o
+    // Retorna para a tela principal
+    showScreen('screen-main'); 
+    
+    // Esconde leitores físicos para focar a visão na coleta da assinatura
+    const leitorUsb = document.getElementById("container-leitor-usb");
+    const leitorCam = document.getElementById("reader");
+    if (leitorUsb) leitorUsb.style.setProperty("display", "none", "important");
+    if (leitorCam) leitorCam.style.setProperty("display", "none", "important");
 
-    try {
-        const elementoProgresso = document.getElementById("txt-progresso");
-        const statusProgresso = elementoProgresso ? elementoProgresso.innerText.trim() : "";
-
-        const payload = {
-            action: "finalizarLote",
-            romaneio: romaneioAtual,
-            usuario: document.getElementById("usuario").value || "Sistema",
-            codigos: typeof codigosLidos !== 'undefined' ? codigosLidos : [],
-            geo: window.lastGeo || "0,0",
-            assinatura: "", // Envia vazio pois o foco aqui é fechar por intercorrência direto
-            foto_avaria: window.fotoAvariaBase64 || "",
-            conferencia: new Date().toLocaleString("pt-BR"),
-            intercorrencia: intercorrenciaFinal, 
-            obs_final: `Encerrado via Ocorrência: ${motivo}`,
-            status_lote: statusProgresso 
-        };
-
-        const response = await fetch(urlSheets, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        
-        const result = await response.json();
-
-        if (result.success) {
-            if (typeof tocarBeep === 'function') tocarBeep('sucesso');
-            alert("✅ Ocorrência registrada e lote encerrado com sucesso!");
-
-            // Remove o romaneio fechado do banco de dados local da tela
-            if (typeof dadosCompletos !== 'undefined') {
-                dadosCompletos = dadosCompletos.filter(r => r.Romaneio !== romaneioAtual);
-            }
-
-            // reconstrói o Combobox atualizado
-            const select = document.getElementById("romaneio");
-            if (select) {
-                select.innerHTML = '<option value="">Selecione um Romaneio...</option>';
-                dadosCompletos.forEach(info => select.add(new Option(info.Romaneio, info.Romaneio)));
-            }
-
-            // Desliga fisicamente os sensores de mídia abertos se houver
-            if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
-            window.fotoAvariaBase64 = "";
-
-            // Limpa os campos internos de texto da intercorrência
-            if (motivoSelect) motivoSelect.value = "";
-            if (obsInput) obsInput.value = "";
-
-            // RESETA A INTERFACE E VOLTA PRO MENU PRINCIPAL PRONTO PARA O PRÓXIMO ROMANEIO
-            resetarInterface();
-            showScreen('screen-main');
-
-        } else {
-            alert("❌ Erro ao salvar dados no servidor: " + result.error);
-        }
-    } catch (err) {
-        console.error("Erro no envio da intercorrência:", err);
-        alert("❌ Falha de comunicação ao encerrar lote.");
-    } finally {
-        exibirAvisoLoadingGlobal(false); // Desliga spinner se houver
-    }
+    // =================================================================
+    // CORREÇÃO: Em vez de reabrir a assinatura, dispara o envio direto
+    // que já possui o ID do Romaneio e a assinatura salvos na tela!
+    // =================================================================
+    console.log("🚀 [GATILHO] Ocorrência salva localmente. Disparando envio final...");
+    await enviarDadosFinais();
 }
+
 
 // Função auxiliar genérica para controle de loading (só para segurança contra quebra de código)
 function exibirAvisoLoadingGlobal(mostrar, texto) {
