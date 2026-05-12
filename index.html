@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v15</h3>
+    <h3>Passagem de Carga | Conferência v16</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -1300,24 +1300,28 @@ async function enviarDadosFinais() {
         const result = await response.json();
 
         if (result.success) {
-            // 1. Atualiza lista local
+            // 1. BACKUP IMEDIATO: Salva o ID do romaneio atual em uma variável persistente
+            // ANTES de atualizar a lista local e ANTES de reconstruir o combobox!
+            window.romaneioEmFinalizacao = romaneioAtual;
+            console.log("🔒 [BACKUP SEGURO] ID do Romaneio guardado na memória:", window.romaneioEmFinalizacao);
+
+            // 2. Atualiza lista local
             if (typeof dadosCompletos !== 'undefined') {
                 dadosCompletos = dadosCompletos.filter(r => r.Romaneio !== romaneioAtual);
             }
 
-            // 2. Reconstrói o Combobox (O valor visual é zerado aqui)
+            // 3. Reconstrói o Combobox (O valor visual é zerado aqui com segurança)
             const select = document.getElementById("romaneio");
             if (select) {
                 select.innerHTML = '<option value="">Selecione um Romaneio...</option>';
                 dadosCompletos.forEach(info => select.add(new Option(info.Romaneio, info.Romaneio)));
             }
 
-            // --- NOVO RETORNO: ADAPTADO PARA DUPLO DIRECIONAMENTO LOGÍSTICO ---
+            // 4. Direcionamento Logístico condicional
             setTimeout(async () => {
                 const desejaOcorrencia = confirm("✅ Enviado! Deseja registrar ocorrência? Ex.: Caixa violada, Notas pendentes...?");
                 
                 if (desejaOcorrencia) {
-                    // Força a exibição do botão Cancelar na tela de intercorrências (Tornando opcional)
                     const btnCancelarIntercor = document.getElementById("btn-cancelar-intercorrencia");
                     if (btnCancelarIntercor) {
                         btnCancelarIntercor.style.display = "inline-block";
@@ -1496,7 +1500,7 @@ async function registrarIntercorrencia() {
     const motivoSelect = document.getElementById("select-motivo");
     const obsInput = document.getElementById("obs-intercorrencia");
     
-    // CORREÇÃO CIRÚRGICA: Resgata o Romaneio salvo no backup em vez de ler o combobox zerado
+    // CORREÇÃO CIRÚRGICA BLINDADA: Resgata o Romaneio salvo no backup do primeiro milisegundo do envio
     const romaneioAlvoFixado = window.romaneioEmFinalizacao || document.getElementById("romaneio").value;
     
     const motivo = motivoSelect ? motivoSelect.value.trim() : "";
@@ -1543,6 +1547,7 @@ async function registrarIntercorrencia() {
             if (obsInput) obsInput.value = "";
             if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
             window.fotoAvariaBase64 = "";
+            window.romaneioEmFinalizacao = ""; // Limpa o backup de sessão pós-conclusão
 
             resetarInterface();
             showScreen('screen-main');
@@ -1556,6 +1561,7 @@ async function registrarIntercorrencia() {
         document.querySelector("button[onclick='registrarIntercorrencia()']").disabled = false;
     }
 }
+
 
 
 // Função auxiliar genérica para controle de loading (só para segurança contra quebra de código)
