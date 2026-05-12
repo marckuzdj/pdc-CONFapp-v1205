@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v2</h3>
+    <h3>Passagem de Carga | Conferência v3</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -561,6 +561,12 @@ async function realizarLogin() {
             document.getElementById('usuario').value = data.nome;
             document.getElementById('transp').value = document.getElementById('login-transp').value;
             
+            // -----------------------------------------------------------------
+            // ADICIONADO APENAS O NECESSÁRIO: Carrega os dados filtrados imediatamente pós-autenticação
+            // -----------------------------------------------------------------
+            await carregarDadosIniciais();
+            // -----------------------------------------------------------------
+            
             showScreen('screen-main');
         } else {
             if (typeof tocarBeep === 'function') tocarBeep('erro');
@@ -577,6 +583,7 @@ async function realizarLogin() {
         if (typeof enviandoDados !== 'undefined') enviandoDados = false;
     }
 }
+
 
 
 // --- FUNÇÃO DE RECUPERAÇÃO ATUALIZADA (CASE-INSENSITIVE + JSONP) ---
