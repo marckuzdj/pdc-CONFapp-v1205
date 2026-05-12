@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v7</h3>
+    <h3>Passagem de Carga | Conferência v8</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -122,9 +122,9 @@
         <option value="">Carregando...</option>
     </select>
     
-   <!-- <button class="btn btn-primary" onclick="realizarLogin()">Entrar</button> -->
+  <button class="btn btn-primary" onclick="validarAcessoCompleto()">Entrar</button> 
    
-    <button type="button" class="btn-primary" onclick="validarAcessoCompleto()">Entrar</button>
+    <!--  <button type="button" class="btn-primary" onclick="validarAcessoCompleto()">Entrar</button>-->
 
     <!-- Links centralizados -->
     <div style="text-align: center; display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
@@ -375,17 +375,18 @@ async function forcarUpdateLista() {
 }
 
 // --- NOVA FUNÇÃO: BARREIRA INTELIGENTE DE PERMISSÕES (MOBILE VS PC) ---
+// --- FUNÇÃO: BARREIRA INTELIGENTE BASEADA NO DISPOSITIVO (USER AGENT) ---
 async function verificarPermissoes() {
-    // Detecta se é mobile usando o mesmo critério de largura que seu app já usa para o hardware
-    const isMobile = window.innerWidth <= 768;
+    // Detecta se é realmente um dispositivo móvel (celular ou tablet)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     try {
-        // 1. CÂMERA: Só solicita se for ambiente Mobile
+        // 1. CÂMERA: Só solicita se for comprovadamente ambiente Mobile
         if (isMobile) {
-            console.log("📱 Ambiente Mobile detectado. Solicitando Câmera...");
+            console.log("📱 Dispositivo Móvel detectado. Solicitando Câmera...");
             await navigator.mediaDevices.getUserMedia({ video: true });
         } else {
-            console.log("💻 Ambiente Desktop detectado. Ignorando teste de Câmera.");
+            console.log("💻 Computador Desktop detectado. Ignorando teste de Câmera.");
         }
         
         // 2. LOCALIZAÇÃO: Obrigatória para ambos os cenários (Mobile e PC)
@@ -397,14 +398,14 @@ async function verificarPermissoes() {
             });
         });
         
-        return true; // Passou em todas as permissões exigidas para o ambiente atual
+        return true; 
     } catch (err) {
         console.error("Permissão recusada pelo usuário:", err);
-        return false; // Usuário barrou alguma das permissões obrigatórias
+        return false; 
     }
 }
 
-// --- GATILHO DO BOTÃO ENTRAR ---
+// --- GATILHO DO BOTÃO ENTRAR (MANTIDO ADAPTÁVEL) ---
 async function validarAcessoCompleto() {
     const container = document.getElementById("screen-login");
     const btnLogin = container.querySelector(".btn-primary");
@@ -414,28 +415,27 @@ async function validarAcessoCompleto() {
     btnLogin.innerHTML = 'Checando permissões...';
 
     const permissoesValidas = await verificarPermissoes();
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     if (!permissoesValidas) {
         if (typeof tocarBeep === 'function') tocarBeep('erro');
         
-        // Mensagem dinâmica adaptada ao dispositivo do conferente
         const mensagemErro = isMobile 
-            ? "⚠️ Atenção: O acesso à CÂMERA e à LOCALIZAÇÃO são OBRIGATÓRIOS! Por favor, ative-os para entrar no APP."
-            : "⚠️ Atenção: O acesso à LOCALIZAÇÃO é OBRIGATÓRIO!. Por favor, ative-o para entrar no APP.";
+            ? "⚠️ Atenção: O acesso à CÂMERA e à LOCALIZAÇÃO são OBRIGATÓRIOS para operar no celular. Por favor, ative-os no seu navegador."
+            : "⚠️ Atenção: O acesso à LOCALIZAÇÃO é OBRIGATÓRIO para operar no computador. Por favor, ative-o no seu navegador.";
             
         alert(mensagemErro);
         btnLogin.disabled = false;
         btnLogin.innerHTML = textoOriginal;
-        return; // Bloqueia o avanço do login
+        return; 
     }
 
-    // Se o dispositivo permitiu o necessário, libera o botão e executa seu login original intacto
     btnLogin.disabled = false;
     btnLogin.innerHTML = textoOriginal;
     
     await realizarLogin();
 }
+
 
 
 
