@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v1</h3>
+    <h3>Passagem de Carga | Conferência v2</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -458,7 +458,11 @@ async function iniciarConferencia() {
 // --- 3. CARREGAMENTO INICIAL (EXTRAÍDO PARA FUNÇÃO NOMEADA) ---
 async function carregarDadosIniciais() {
     try {
-        const res = await fetch(urlSheets + "?action=getRomaneios");
+        // Coleta a transportadora vinculada que foi salva na interface
+        const transpAtiva = document.getElementById('transp').value || "";
+        
+        // Ajustado o fetch para enviar a transportadora ativa como parâmetro HTTP
+        const res = await fetch(urlSheets + "?action=getRomaneios&transp=" + encodeURIComponent(transpAtiva));
         const data = await res.json();
         
         // --- ADAPTAÇÃO: Filtra os dados antes de salvar na variável global ---
@@ -484,6 +488,7 @@ async function carregarDadosIniciais() {
         console.error("Erro ao carregar romaneios:", err);
     }
 }
+
 
 
 // Faz o carregamento automático quando a página abre
