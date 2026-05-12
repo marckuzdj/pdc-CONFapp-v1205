@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v4</h3>
+    <h3>Passagem de Carga | Conferência v5</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -456,18 +456,33 @@ async function iniciarConferencia() {
     
 // --- 3. CARREGAMENTO INICIAL (WINDOW.ONLOAD) ---
 // --- 3. CARREGAMENTO INICIAL (EXTRAÍDO PARA FUNÇÃO NOMEADA) ---
+// --- 3. CARREGAMENTO INICIAL (EXTRAÍDO PARA FUNÇÃO NOMEADA) ---
 async function carregarDadosIniciais() {
     try {
+        // Coleta o elemento e o valor bruto para análise de integridade
+        const elTransp = document.getElementById('transp');
+        const valorBrutoElemento = elTransp ? elTransp.value : "ELEMENTO NÃO ENCONTRADO";
+        console.log("🔍 [DEPURAÇÃO APP] Valor bruto lido de #transp:", `"${valorBrutoElemento}"`);
+
         // Coleta a transportadora vinculada que foi salva na interface e força MAIÚSCULO (UCASE)
         const transpAtiva = (document.getElementById('transp').value || "").toString().toUpperCase().trim();
+        console.log("🔍 [DEPURAÇÃO APP] Transportadora formatada para envio (UCASE):", `"${transpAtiva}"`);
         
-        // Ajustado o fetch para enviar a transportadora ativa como parâmetro HTTP
-        const res = await fetch(urlSheets + "?action=getRomaneios&transp=" + encodeURIComponent(transpAtiva));
+        // Monta a URL final para inspeção de rota externa
+        const urlFinal = urlSheets + "?action=getRomaneios&transp=" + encodeURIComponent(transpAtiva);
+        console.log("🌐 [DEPURAÇÃO APP] URL de Requisição enviada ao Fetch:", urlFinal);
+
+        // Executa a chamada HTTP para o Web App do Apps Script
+        const res = await fetch(urlFinal);
         const data = await res.json();
+        
+        console.log("📦 [DEPURAÇÃO APP] Resposta bruta recebida do Apps Script (Total de linhas):", data.length);
+        console.log("📋 [DEPURAÇÃO APP] Amostra do Array retornado:", JSON.stringify(data.slice(0, 2), null, 2));
         
         // --- ADAPTAÇÃO: Filtra os dados antes de salvar na variável global ---
         // Isso garante que romaneios com conferência preenchida sumam de vez da memória do App
         dadosCompletos = data.filter(item => !item.Conferencia || item.Conferencia.toString().trim() === "");
+        console.log("📊 [DEPURAÇÃO APP] Total de romaneios após o filtro local (.Conferencia vazio):", dadosCompletos.length);
         
         const select = document.getElementById("romaneio");
         
@@ -481,11 +496,14 @@ async function carregarDadosIniciais() {
                 opt.innerHTML = item.Romaneio;
                 select.appendChild(opt);
             });
+            console.log(`✅ [DEPURAÇÃO APP] Combobox populado com ${dadosCompletos.length} opções.`);
+        } else {
+            console.error("❌ [DEPURAÇÃO APP] Elemento select id='romaneio' não foi encontrado na árvore do DOM!");
         }
         
         console.log("✅ Romaneios carregados e filtrados com sucesso!");
     } catch (err) {
-        console.error("Erro ao carregar romaneios:", err);
+        console.error("🚨 [DEPURAÇÃO APP] Falha crítica detectada no fluxo de carga:", err);
     }
 }
 
