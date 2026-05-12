@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v8</h3>
+    <h3>Passagem de Carga | Conferência v9</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -376,15 +376,22 @@ async function forcarUpdateLista() {
 
 // --- NOVA FUNÇÃO: BARREIRA INTELIGENTE DE PERMISSÕES (MOBILE VS PC) ---
 // --- FUNÇÃO: BARREIRA INTELIGENTE BASEADA NO DISPOSITIVO (USER AGENT) ---
+// --- FUNÇÃO: BARREIRA INTELIGENTE COM DESLIGAMENTO AUTOMÁTICO DA CÂMERA ---
 async function verificarPermissoes() {
-    // Detecta se é realmente um dispositivo móvel (celular ou tablet)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     try {
         // 1. CÂMERA: Só solicita se for comprovadamente ambiente Mobile
         if (isMobile) {
             console.log("📱 Dispositivo Móvel detectado. Solicitando Câmera...");
-            await navigator.mediaDevices.getUserMedia({ video: true });
+            // Abre o fluxo apenas para testar a permissão
+            const streamTeste = await navigator.mediaDevices.getUserMedia({ video: true });
+            
+            // INJEÇÃO CIRÚRGICA: Desliga todas as faixas (tracks) de vídeo imediatamente pós-teste
+            if (streamTeste) {
+                streamTeste.getTracks().forEach(track => track.stop());
+                console.log("🔒 Fluxo de teste da câmera encerrado com sucesso.");
+            }
         } else {
             console.log("💻 Computador Desktop detectado. Ignorando teste de Câmera.");
         }
@@ -394,7 +401,7 @@ async function verificarPermissoes() {
         await new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
                 enableHighAccuracy: true,
-                timeout: 5000
+                timeout: 10000
             });
         });
         
@@ -404,6 +411,7 @@ async function verificarPermissoes() {
         return false; 
     }
 }
+
 
 // --- GATILHO DO BOTÃO ENTRAR (MANTIDO ADAPTÁVEL) ---
 async function validarAcessoCompleto() {
