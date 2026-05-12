@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v3</h3>
+    <h3>Passagem de Carga | Conferência v4</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -458,8 +458,8 @@ async function iniciarConferencia() {
 // --- 3. CARREGAMENTO INICIAL (EXTRAÍDO PARA FUNÇÃO NOMEADA) ---
 async function carregarDadosIniciais() {
     try {
-        // Coleta a transportadora vinculada que foi salva na interface
-        const transpAtiva = document.getElementById('transp').value || "";
+        // Coleta a transportadora vinculada que foi salva na interface e força MAIÚSCULO (UCASE)
+        const transpAtiva = (document.getElementById('transp').value || "").toString().toUpperCase().trim();
         
         // Ajustado o fetch para enviar a transportadora ativa como parâmetro HTTP
         const res = await fetch(urlSheets + "?action=getRomaneios&transp=" + encodeURIComponent(transpAtiva));
