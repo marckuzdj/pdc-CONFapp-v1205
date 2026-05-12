@@ -110,7 +110,7 @@
 
 <!-- 1. TELA DE LOGIN -->
 <div id="screen-login" class="card"> <!-- Adicionado a classe card aqui -->
-    <h3>Passagem de Carga | Conferência v14</h3>
+    <h3>Passagem de Carga | Conferência v15</h3>
     <label>E-mail</label>
     <input type="email" id="login-user" placeholder="seu@email.com">
     
@@ -1251,6 +1251,11 @@ async function enviarDadosFinais() {
     const areaAssinatura = document.getElementById("areaAssinatura");
     const romaneioAtual = document.getElementById("romaneio").value;
 
+    // =================================================================
+    // BLINDAGEM DE MEMÓRIA: Salva o ID antes que a interface limpe o Combobox
+    // =================================================================
+    window.romaneioEmFinalizacao = romaneioAtual;
+
     try {
         const canvas = document.getElementById('canvasAssinatura');
         const assinaturaBase64 = canvas ? canvas.toDataURL("image/png") : "";
@@ -1300,7 +1305,7 @@ async function enviarDadosFinais() {
                 dadosCompletos = dadosCompletos.filter(r => r.Romaneio !== romaneioAtual);
             }
 
-            // 2. Reconstrói o Combobox
+            // 2. Reconstrói o Combobox (O valor visual é zerado aqui)
             const select = document.getElementById("romaneio");
             if (select) {
                 select.innerHTML = '<option value="">Selecione um Romaneio...</option>';
@@ -1343,6 +1348,7 @@ async function enviarDadosFinais() {
         }
     }
 }
+
 
 
 
@@ -1490,17 +1496,16 @@ async function registrarIntercorrencia() {
     const motivoSelect = document.getElementById("select-motivo");
     const obsInput = document.getElementById("obs-intercorrencia");
     
+    // CORREÇÃO CIRÚRGICA: Resgata o Romaneio salvo no backup em vez de ler o combobox zerado
+    const romaneioAlvoFixado = window.romaneioEmFinalizacao || document.getElementById("romaneio").value;
+    
     const motivo = motivoSelect ? motivoSelect.value.trim() : "";
     const obs = obsInput ? obsInput.value.trim() : "";
-    
-    const btnMain = document.querySelector("button[onclick='finalizarLote()']");
-    const areaAss = document.getElementById("areaAssinatura");
 
-    // Validação estrita de obrigatoriedade dos dois campos na interface
+    if (!romaneioAlvoFixado) return alert("⚠️ Erro de sessão: ID do Romaneio não localizado.");
     if (!motivo) return alert("⚠️ Por favor, selecione o motivo!");
     if (!obs) return alert("⚠️ Por favor, preencha a observação detalhada!");
 
-    // Validação obrigatória de Foto para Avaria
     if (motivo === "Mercadoria Avariada") {
         if (typeof window.fotoAvariaBase64 === 'undefined' || !window.fotoAvariaBase64) {
             if (typeof tocarBeep === 'function') tocarBeep('erro');
@@ -1508,35 +1513,48 @@ async function registrarIntercorrencia() {
         }
     }
 
-    // Identifica se a quebra veio por falta de bipes ou por divergência de volume
     const faltantes = window.qtdFaltantesLoteAtual || 0;
     const prefixo = faltantes > 0 ? `[PENDENTE ${faltantes} ITENS]` : "[CONCLUÍDO COM OCORRÊNCIA]";
     
-    // Concatena mantendo a estrutura limpa para a string do payload
     intercorrenciaFinal = `${prefixo} Motivo: ${motivo} | Obs: ${obs}`;
-    
-    // Limpa os campos internos para que não fiquem preenchidos em uma próxima carga
-    if (motivoSelect) motivoSelect.value = "";
-    if (obsInput) obsInput.value = "";
-    
-    // Desliga fisicamente os sensores de mídia abertos se houver
-    if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
 
-    // Retorna para a tela principal
-    showScreen('screen-main'); 
-    
-    // Esconde leitores físicos para focar a visão na coleta da assinatura
-    const leitorUsb = document.getElementById("container-leitor-usb");
-    const leitorCam = document.getElementById("reader");
-    if (leitorUsb) leitorUsb.style.setProperty("display", "none", "important");
-    if (leitorCam) leitorCam.style.setProperty("display", "none", "important");
+    // Dispara a atualização do motivo diretamente via rota complementar para não resetar assinaturas
+    try {
+        document.querySelector("button[onclick='registrarIntercorrencia()']").disabled = true;
+        
+        const payloadOcorrencia = {
+            romaneio: romaneioAlvoFixado,
+            intercorrencia: intercorrenciaFinal,
+            foto_avaria: window.fotoAvariaBase64 || ""
+        };
 
-    // =================================================================
-    // CORREÇÃO: Em vez de reabrir a assinatura, dispara o envio direto
-    // que já possui o ID do Romaneio e a assinatura salvos na tela!
-    // =================================================================
-    console.log("🚀 [GATILHO] Ocorrência salva localmente. Disparando envio final...");
-    await enviarDadosFinais();
+        // Faz o disparo secundário para atualizar os campos na linha correta
+        const response = await fetch(urlSheets, {
+            method: 'POST',
+            body: JSON.stringify(payloadOcorrencia)
+        });
+        
+        const result = await response.json();
+
+        if (result.success) {
+            alert("✅ Ocorrência registrada com sucesso!");
+            
+            if (motivoSelect) motivoSelect.value = "";
+            if (obsInput) obsInput.value = "";
+            if (typeof desligarCameraAvaria === 'function') desligarCameraAvaria();
+            window.fotoAvariaBase64 = "";
+
+            resetarInterface();
+            showScreen('screen-main');
+        } else {
+            alert("❌ Falha ao salvar ocorrência: " + result.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("❌ Erro de comunicação.");
+    } finally {
+        document.querySelector("button[onclick='registrarIntercorrencia()']").disabled = false;
+    }
 }
 
 
